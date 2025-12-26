@@ -1,30 +1,27 @@
+from __future__ import annotations
+
+# =========================
+# Imports
+# =========================
+import json
+import csv
+from pathlib import Path
+from typing import Any, Dict, List
+
 import numpy as np
 import mne
 import torch
-from typing import Dict, Any
-
-from __future__ import annotations
-
-import csv
-from pathlib import Path
-import torch
+from torch.utils.data import Dataset, DataLoader
 
 
-# ---- label parsing ----
+# =========================
+# Seizure label logic
+# =========================
 SEIZURE_TOKENS = {
-    "seiz",
-    "sz",
-    "seizure",
-    "fnsz",
-    "gnsz",
-    "spsz",
-    "cpsz",
-    "absz",
-    "tnsz",
-    "tcsz",
-    "mysz",
+    "seiz", "sz", "seizure",
+    "fnsz", "gnsz", "spsz", "cpsz",
+    "absz", "tnsz", "tcsz", "mysz",
 }
-
 
 def _is_seizure_label(text: str) -> bool:
     t = (text or "").strip().lower()
@@ -34,60 +31,58 @@ def _is_seizure_label(text: str) -> bool:
 def label_from_csv_bi(csv_bi_path: str | Path) -> int:
     """
     Returns:
-      1 if any row looks like a seizure event
+      1 if any seizure label found
       0 otherwise
     """
     p = Path(csv_bi_path)
     if not p.exists():
         return 0
 
-    # TUH csv_bi is small; just scan rows.
     with p.open("r", newline="") as f:
         reader = csv.reader(f)
         for row in reader:
             if not row:
                 continue
-            # skip obvious headers
+
             joined = " ".join(row).lower()
             if "start" in joined and "stop" in joined and "label" in joined:
                 continue
 
-            # try common places where label might appear (often last col)
-            cand_cols = [row[-1]] + row  # include last + all
-            if any(_is_seizure_label(c) for c in cand_cols):
+            # try last column + all columns
+            candidates = [row[-1]] + row
+            if any(_is_seizure_label(c) for c in candidates):
                 return 1
 
     return 0
 
 
+# =========================
+# EDF loading
+# =========================
 def load_edf_window_all_channels(
     edf_path: str,
     fs: int,
     window_sec: float,
     C_max: int,
 ) -> torch.Tensor:
+
     raw = mne.io.read_raw_edf(edf_path, preload=False, verbose=False)
     raw.pick("eeg")
-    # picks = mne.pick_types(raw.info, eeg=True, eog=False, ecg=False, emg=False, stim=False, misc=False)
-    # if len(picks) > 0:
-    #     raw.pick(picks)
 
     if int(raw.info["sfreq"]) != fs:
         raw = raw.copy().resample(fs, npad="auto")
 
     T = int(fs * window_sec)
 
-    data = raw.get_data(start=0, stop=T)  # [C_i, T_i] (T_i can be < T)
-    data = data.astype(np.float32)
+    data = raw.get_data(start=0, stop=T).astype(np.float32)
 
-    # normalize per channel (avoid div by 0)
+    # per-channel normalization
     data = (data - data.mean(axis=1, keepdims=True)) / (
         data.std(axis=1, keepdims=True) + 1e-6
     )
 
     C_i, T_i = data.shape
 
-    # pad/truncate channels + time
     x = np.zeros((C_max, T), dtype=np.float32)
     c = min(C_i, C_max)
     t = min(T_i, T)
@@ -96,12 +91,16 @@ def load_edf_window_all_channels(
     return torch.from_numpy(x)
 
 
+# =========================
+# Collate function
+# =========================
 def collate_edf_all_channels(
-    batch: list[Dict[str, Any]],
+    batch: List[Dict[str, Any]],
     fs: int = 250,
     window_sec: float = 10.0,
-    C_max: int = 41,  # choose something safe; we'll also show how to auto-find it below
+    C_max: int = 41,
 ) -> Dict[str, Any]:
+
     xs, ys = [], []
 
     for item in batch:
@@ -111,34 +110,80 @@ def collate_edf_all_channels(
                 item["edf_path"],
                 fs=fs,
                 window_sec=window_sec,
-                C_max=41,
+                C_max=C_max,
             )
         )
 
-    x = torch.stack(xs, dim=0)  # [B, C_max, T]
+    x = torch.stack(xs, dim=0)  # [B, C, T]
     y = torch.tensor(ys, dtype=torch.long)
 
-    return {"x": x, "y": y, "meta": batch}
+    return {
+        "x": x,
+        "y": y,
+        "meta": batch,
+    }
 
 
-# ====== Test =====
-import torch
-from torch.utils.data import DataLoader
+# =========================
+# Dataset (JSON-based)
+# =========================
+class TUHZJsonDataset(Dataset):
+    def __init__(self, json_path: str | Path) -> None:
+        self.json_path = Path(json_path)
+        if not self.json_path.exists():
+            raise FileNotFoundError(f"JSON not found: {self.json_path}")
 
-# --- C) collate function test ---
-# --- C) collate function test (UPDATED for real EDF) ---
-fs = 250
-window_sec = 10.0
-C_max = 41
-T = int(fs * window_sec)
+        with self.json_path.open("r", encoding="utf-8") as f:
+            self.records: List[Dict[str, Any]] = json.load(f)
 
-loader = DataLoader(
-    dataset,
-    batch_size=8,
-    shuffle=True,
-    num_workers=0,
-    pin_memory=True,
-    collate_fn=lambda b: collate_edf_all_channels(
-        b, fs=fs, window_sec=window_sec, C_max=C_max
-    ),
-)
+        if len(self.records) == 0:
+            raise RuntimeError("JSON is empty")
+
+        required = {"edf_path", "csv_path", "csv_bi_path"}
+        missing = required - set(self.records[0].keys())
+        if missing:
+            raise KeyError(f"Missing keys in JSON: {missing}")
+
+    def __len__(self) -> int:
+        return len(self.records)
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        rec = self.records[idx]
+        return {
+            "edf_path": rec["edf_path"],
+            "csv_path": rec["csv_path"],
+            "csv_bi_path": rec["csv_bi_path"],
+            "stem": rec.get("stem"),
+            "subject": rec.get("subject"),
+            "session": rec.get("session"),
+            "montage": rec.get("montage"),
+        }
+
+
+# =========================
+# Test DataLoader
+# =========================
+if __name__ == "__main__":
+
+    json_path = "eeg_seizure_only.json"   # <-- update path
+    dataset = TUHZJsonDataset(json_path)
+
+    fs = 250
+    window_sec = 10.0
+    C_max = 41
+
+    loader = DataLoader(
+        dataset,
+        batch_size=8,
+        shuffle=True,
+        num_workers=0,
+        pin_memory=True,
+        collate_fn=lambda b: collate_edf_all_channels(
+            b, fs=fs, window_sec=window_sec, C_max=C_max
+        ),
+    )
+
+    batch = next(iter(loader))
+    print("x shape:", batch["x"].shape)   # [B, C_max, T]
+    print("y shape:", batch["y"].shape)   # [B]
+    print("batch keys:", batch.keys())
