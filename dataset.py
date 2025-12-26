@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Any
@@ -127,10 +127,31 @@ class TUHZDataset(Dataset):
         raise NotImplementedError(
             "Set return_paths_only=True, or implement loaders for EDF/CSV here."
         )
+        
+    def to_json(self, out_path: str | Path) -> None:
+        out_path = Path(out_path)
+
+        data = []
+        for rec in self.records:
+            data.append({
+                "stem": rec.stem,
+                "csv_path": str(rec.csv_path),
+                "csv_bi_path": str(rec.csv_bi_path),
+                "edf_path": str(rec.edf_path),
+                "subject": rec.subject_dir,
+                "session": rec.session_dir,
+                "montage": rec.montage_dir,
+            })
+
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+        print(f"Saved {len(data)} records to {out_path}")
 
 
 # Example usage:
 dataset = TUHZDataset(
-    r"E:\EEG Dataset\v2.0.3\edf\train", allowed_montages=None
+    r"D:\EEG_DATA\tuh_train\train", allowed_montages=None
 )  # We can use allowed montages only as follows if needed {"03_tcp_ar_a", "02_tcp_le"} ما بعرف اذا بتفيد بس عمومًا موجودة
-print(dataset[0])
+dataset.to_json("tuh_train_index.json")
