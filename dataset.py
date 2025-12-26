@@ -3,6 +3,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Any
+import pandas as pd
 
 import torch
 from torch.utils.data import Dataset
@@ -148,10 +149,42 @@ class TUHZDataset(Dataset):
             json.dump(data, f, indent=2)
 
         print(f"Saved {len(data)} records to {out_path}")
+    
+
+def csv_has_seizure(csv_path: str | Path) -> bool:
+    csv_path = Path(csv_path)
+
+    if not csv_path.exists():
+        return False
+
+    df = pd.read_csv(
+        csv_path,
+        comment="#",          # ⬅️ THIS skips all metadata rows
+        usecols=["label"],    # ⬅️ safer than column index
+        dtype=str
+    )
+
+    labels = df["label"].str.strip().str.lower()
+
+    # TUH seizure labels are usually cpsz, spsz, fnsz, gnsz, etc.
+    return labels.str.contains("sz").any()
 
 
-# Example usage:
 dataset = TUHZDataset(
     r"D:\EEG_DATA\tuh_train\train", allowed_montages=None
 )  # We can use allowed montages only as follows if needed {"03_tcp_ar_a", "02_tcp_le"} ما بعرف اذا بتفيد بس عمومًا موجودة
 dataset.to_json("tuh_train_index.json")
+with open('tuh_train_index.json', 'r') as f:
+    data=json.load(f)
+
+seizure_records = []
+
+for rec in data:
+    if csv_has_seizure(rec["csv_path"]):
+        seizure_records.append(rec)
+
+
+outpath=Path('eeg_seizure_only.json')
+with outpath.open('w' , encoding='utf-8') as f:
+    json.dump(seizure_records , f, indent=2)
+print(f"Seizure recordings: {len(seizure_records)} / {len(data)}")
