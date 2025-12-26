@@ -18,10 +18,19 @@ from torch.utils.data import Dataset, DataLoader
 # Seizure label logic
 # =========================
 SEIZURE_TOKENS = {
-    "seiz", "sz", "seizure",
-    "fnsz", "gnsz", "spsz", "cpsz",
-    "absz", "tnsz", "tcsz", "mysz",
+    "seiz",
+    "sz",
+    "seizure",
+    "fnsz",
+    "gnsz",
+    "spsz",
+    "cpsz",
+    "absz",
+    "tnsz",
+    "tcsz",
+    "mysz",
 }
+
 
 def _is_seizure_label(text: str) -> bool:
     t = (text or "").strip().lower()
@@ -160,12 +169,35 @@ class TUHZJsonDataset(Dataset):
         }
 
 
+class TUHZDataloaderBinary:
+    def __init__(self, json_path, fs=250, window_sec=10.0, C_max=41):
+        dataset = TUHZJsonDataset(json_path)
+
+        self.fs = fs
+        self.window_sec = window_sec
+        self.C_max = C_max
+
+        self.loader = DataLoader(
+            dataset,
+            batch_size=8,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=True,
+            collate_fn=lambda b: collate_edf_all_channels(
+                b, fs=self.fs, window_sec=self.window_sec, C_max=self.C_max
+            ),
+        )
+
+    def return_loader(self):
+        return self.loader
+
+
 # =========================
 # Test DataLoader
 # =========================
 if __name__ == "__main__":
 
-    json_path = "eeg_seizure_only.json"   # <-- update path
+    json_path = "eeg_seizure_only.json"  # <-- update path
     dataset = TUHZJsonDataset(json_path)
 
     fs = 250
@@ -184,6 +216,6 @@ if __name__ == "__main__":
     )
 
     batch = next(iter(loader))
-    print("x shape:", batch["x"].shape)   # [B, C_max, T]
-    print("y shape:", batch["y"].shape)   # [B]
+    print("x shape:", batch["x"].shape)  # [B, C_max, T]
+    print("y shape:", batch["y"].shape)  # [B]
     print("batch keys:", batch.keys())
