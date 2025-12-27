@@ -34,7 +34,8 @@ One JSON for all patients
 One JSON for seizure-only patients
 
 These JSON files act as lightweight metadata and do not load EEG data into memory.
-Step 2 — Cache EEG Windows (.pt files)
+
+### Step 2 — Cache EEG Windows (.pt files)
 
 Run:
 ```bash
@@ -59,7 +60,7 @@ Cached .pt files are much faster to load and manipulate
 
 Enables efficient GPU training
 
-Step 3 — Build Efficient Manifest File
+### Step 3 — Build Efficient Manifest File
 
 Run:
 ```bash
