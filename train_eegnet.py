@@ -55,7 +55,7 @@ CHECKPOINT_PATH = "checkpoints/eegnet_1d_best.pt"
 HISTORY_CSV_PATH = "assets/eegnet_1d_best.csv"
 SEED = 42                 # Different seed from CNN-LSTM for diversity
 
-TRAIN_MANIFEST = "cache_windows_binary_10_sec/manifest.jsonl"
+TRAIN_MANIFEST = "cache_windows_downed_binary_10_sec/manifest.jsonl"
 VAL_MANIFEST = "cache_windows_binary_10_sec_eval/manifest.jsonl"
 
 N_CHANS = 18
