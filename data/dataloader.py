@@ -81,7 +81,7 @@ class Loader:
         transform=None,
         batch_size=32,
         shuffle=False,
-        num_workers=4,
+        num_workers=2,    # 2 workers + persistent = fast & stable on Windows
         pin_memory=False,
         collate_fn=collate_xy,
         use_weighted_sampler=False,
@@ -117,6 +117,7 @@ class Loader:
             num_workers=num_workers,
             pin_memory=pin_memory,
             collate_fn=collate_fn,
+            persistent_workers=(num_workers > 0),  # keeps workers alive, prevents crash/restart
         )
 
     def return_Loader(self):

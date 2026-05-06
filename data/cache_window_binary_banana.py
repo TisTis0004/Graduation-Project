@@ -419,24 +419,24 @@ if __name__ == "__main__":
     # =============================================
 
     # --- TRAIN ---
-    cfg = CacheConfig(
-        json_path=r"assets\eeg_seizure_only.json",
-        out_dir=r"cache_windows_binary_10_sec",
-        fs=256,
-        window_sec=10,
-        stride_sec=5,
-        l_freq=0.5,
-        h_freq=40.0,
-    )
-
-    # --- EVAL ---
     # cfg = CacheConfig(
-    #     json_path=r"assets\eeg_seizure_only_eval.json",
-    #     out_dir=r"cache_windows_binary_10_sec_eval",
+    #     json_path=r"assets\eeg_seizure_only.json",
+    #     out_dir=r"cache_windows_binary_10_sec",
     #     fs=256,
     #     window_sec=10,
     #     stride_sec=5,
     #     l_freq=0.5,
     #     h_freq=40.0,
     # )
+
+    #--- EVAL ---
+    cfg = CacheConfig(
+        json_path=r"assets\eeg_seizure_only_eval.json",
+        out_dir=r"cache_windows_binary_10_sec_eval",
+        fs=256,
+        window_sec=10,
+        stride_sec=5,
+        l_freq=0.5,
+        h_freq=40.0,
+    )
     build_cache_from_json(cfg)

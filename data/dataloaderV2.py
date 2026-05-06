@@ -141,8 +141,8 @@ class Loader:
         ds="cache_windows/manifest.jsonl",
         transform=None,
         batch_size=64, # This will now contain roughly 32 BG and 32 SZ per batch
-        num_workers=4,
-        pin_memory=True, # Highly recommended for GPU training
+        num_workers=4,    # 4 workers + persistent = fast & stable on Windows
+        pin_memory=True,  # Highly recommended for GPU training
     ):
         # We use our new BalancedBufferDataset
         ds = BalancedBufferEEGDataset(ds, transform=transform, buffer_capacity=5000)
@@ -158,6 +158,8 @@ class Loader:
             num_workers=num_workers,
             pin_memory=pin_memory,
             collate_fn=collate_xy,
+            persistent_workers=(num_workers > 0),  # keeps workers alive, prevents crash/restart
+            prefetch_factor=4 if num_workers > 0 else None,  # queue 4 batches per worker
             # drop_last=True helps avoid weird batch sizes at the very end of an epoch
             drop_last=True 
         )

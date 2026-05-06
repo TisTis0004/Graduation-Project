@@ -64,7 +64,7 @@ CHECKPOINT_PATH = 'checkpoints/cnn_lstm_large_v3.pt'
 HISTORY_CSV_PATH = 'assets/cnn_lstm_large_v3.csv'
 SEED = 3025
 
-TRAIN_MANIFEST = 'cache_windows_binary_10_sec\manifest.jsonl'
+TRAIN_MANIFEST = 'cache_windows_downed2x_binary_10_sec\manifest.jsonl'
 VAL_MANIFEST = "cache_windows_binary_10_sec_eval\manifest.jsonl"
 
 
