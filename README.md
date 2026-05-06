@@ -83,7 +83,27 @@ python data/cache_window_binary_banana.py
 
 ---
 
-### Step 3 — Train
+### Step 3 — Downsample Background (Balance the Dataset)
+
+```bash
+python data/downsample_background.py
+```
+
+**Why this is needed:**
+The TUH dataset is massively imbalanced — background windows outnumber seizure windows by 10–20x. Training on this raw ratio would cause the model to predict "background" for everything and still get 90% accuracy while missing every seizure.
+
+**What this does:**
+- Reads the cached `manifest.jsonl` from Step 2.
+- Counts seizure vs. background windows across all `.pt` files.
+- Randomly keeps only `bg_multiplier × seizure_count` background windows (default: 2x).
+- Saves the downsampled data to a **new folder** (does not overwrite the original cache).
+- Generates a new `manifest.jsonl` for the balanced dataset.
+
+> Edit the `bg_multiplier` in the `__main__` block to control the ratio (e.g., 2x, 3x, 5x).
+
+---
+
+### Step 4 — Train
 
 You have **two independent training scripts** — each is self-contained with its own augmentation pipeline:
 
@@ -119,7 +139,7 @@ Both scripts save checkpoints to `checkpoints/` and training logs to `assets/`.
 
 ---
 
-### Step 4 — Evaluate
+### Step 5 — Evaluate
 
 ```bash
 # Single model evaluation:
@@ -146,9 +166,10 @@ python evaluation/evaluate_with_voting.py
 2. python data/dataset.py
 3. python data/cache_window_binary_banana.py   (train set)
 4. python data/cache_window_binary_banana.py   (eval set — uncomment eval config)
-5. python train_eegnet.py                      (1D model)
-6. python train_spectrogram.py                 (2D model)
-7. python evaluation/evaluate_ensemble.py      (ensemble eval)
+5. python data/downsample_background.py        (balance train set)
+6. python train_eegnet.py                      (1D model)
+7. python train_spectrogram.py                 (2D model)
+8. python evaluation/evaluate_ensemble.py      (ensemble eval)
 ```
 
 ---
