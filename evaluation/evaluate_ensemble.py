@@ -50,7 +50,7 @@ from braindecode.models import EEGNet
 SPECTROGRAM_MODELS = [
     {
         "name": "CNN-LSTM-Large v3",
-        "checkpoint": "checkpoints/cnn_lstm_melspectrogram_dropout_new4changes.pt",
+        "checkpoint": "checkpoints/best_cnn_lstm.pt",
         "model_class": Spectrogram_CNN_LSTM,
     },
     # Uncomment to add more 2D models:
@@ -78,7 +78,7 @@ EEGNET_MODELS = [
         "kernel_length": 128,
         "drop_prob": 0.5,
     },
-    # Uncomment the SWA variant if available:
+    # Uncomment the SWA variant if available: if u wnat u can do that also it another idea
     # {
     #     "name": "EEGNet-1D SWA",
     #     "checkpoint": "checkpoints/eegnet_1d_best_swa_final.pt",
