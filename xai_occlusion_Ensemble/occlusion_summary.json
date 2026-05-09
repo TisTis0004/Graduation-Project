@@ -1,0 +1,83 @@
+{
+  "method": "Occlusion (channel / time-segment / band)",
+  "ensemble": "CNN-LSTM-2D + EEGNet-1D",
+  "occlusion_value": "zero (channel and time) / bandstop filter (band)",
+  "seizure": {
+    "n_windows": 6165,
+    "most_important_channel": "t6-o2",
+    "most_important_time_segment": "Early\n0-3s",
+    "most_important_band": "delta",
+    "channel_drops": {
+      "fp1-f7": -0.006302,
+      "f7-t3": -0.005966,
+      "t3-t5": -0.003408,
+      "t5-o1": 0.018507,
+      "fp2-f8": -0.004397,
+      "f8-t4": -0.000571,
+      "t4-t6": 0.008666,
+      "t6-o2": 0.024869,
+      "fp1-f3": 0.012612,
+      "f3-c3": -0.013347,
+      "c3-p3": -0.003744,
+      "p3-o1": 0.01199,
+      "fp2-f4": -0.002873,
+      "f4-c4": -0.012049,
+      "c4-p4": 0.011024,
+      "p4-o2": 0.012219,
+      "fz-cz": 0.011055,
+      "cz-pz": 0.003343
+    },
+    "time_drops": {
+      "Early\n0-3s": 0.119321,
+      "Mid\n3-6s": 0.098566,
+      "Mid-Late\n6-9s": 0.105216,
+      "Late\n9-10s": 0.095854
+    },
+    "band_drops": {
+      "delta": 0.111394,
+      "theta": 0.042226,
+      "alpha": 0.03761,
+      "beta": -0.056908,
+      "gamma": 0.018522
+    }
+  },
+  "background": {
+    "n_windows": 24221,
+    "most_important_channel": "t5-o1",
+    "most_important_time_segment": "Late\n9-10s",
+    "most_important_band": "delta",
+    "channel_drops": {
+      "fp1-f7": -0.005261,
+      "f7-t3": -0.014373,
+      "t3-t5": -0.003083,
+      "t5-o1": 0.017452,
+      "fp2-f8": -0.010889,
+      "f8-t4": -0.002465,
+      "t4-t6": 0.002489,
+      "t6-o2": 0.015809,
+      "fp1-f3": 0.002913,
+      "f3-c3": -0.017946,
+      "c3-p3": -0.003816,
+      "p3-o1": 0.00303,
+      "fp2-f4": -0.005732,
+      "f4-c4": -0.016119,
+      "c4-p4": 0.000628,
+      "p4-o2": -0.000312,
+      "fz-cz": 0.003746,
+      "cz-pz": 0.002804
+    },
+    "time_drops": {
+      "Early\n0-3s": 0.017341,
+      "Mid\n3-6s": 0.007101,
+      "Mid-Late\n6-9s": 0.002554,
+      "Late\n9-10s": 0.050794
+    },
+    "band_drops": {
+      "delta": 0.052375,
+      "theta": 0.003798,
+      "alpha": 0.013479,
+      "beta": -0.111164,
+      "gamma": -0.011313
+    }
+  }
+}
