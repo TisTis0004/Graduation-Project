@@ -4,7 +4,7 @@ import subprocess
 
 def main():
     parser = argparse.ArgumentParser(description="Unified Training Interface for EEG Seizure Detection")
-    parser.add_argument("--model", type=str, required=True, choices=["eegnet"], help="Which model to train")
+    parser.add_argument("--model", type=str, required=True, choices=["eegnet", "cnn_lstm"], help="Which model to train")
     
     # Allow passing extra arguments to the underlying script
     args, unknown = parser.parse_known_args()

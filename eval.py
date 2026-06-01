@@ -4,7 +4,7 @@ import subprocess
 
 def main():
     parser = argparse.ArgumentParser(description="Unified Evaluation Interface for EEG Seizure Detection")
-    parser.add_argument("--model", type=str, required=True, choices=["eegnet"], help="Which model architecture to evaluate")
+    parser.add_argument("--model", type=str, required=True, choices=["eegnet", "cnn_lstm"], help="Which model architecture to evaluate")
     parser.add_argument("--ckpt", type=str, required=True, help="Path to the checkpoint file (.pt)")
     parser.add_argument("--manifest", type=str, required=True, help="Path to the evaluation dataset manifest (.jsonl)")
     parser.add_argument("--n_chans", type=int, default=21, help="Number of channels")

@@ -3,7 +3,7 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(description="Unified Ensemble Interface for EEG Seizure Detection")
-    parser.add_argument("--models", nargs="+", required=True, choices=["eegnet"], help="List of models to ensemble")
+    parser.add_argument("--models", nargs="+", required=True, choices=["eegnet", "cnn_lstm"], help="List of models to ensemble")
     parser.add_argument("--ckpts", nargs="+", required=True, help="List of checkpoint paths corresponding to the models")
     parser.add_argument("--manifest", type=str, required=True, help="Path to the evaluation dataset manifest (.jsonl)")
     
