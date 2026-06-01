@@ -74,9 +74,9 @@ python ensemble.py --models eegnet cnn_lstm --ckpts checkpoints/model1.pt checkp
 The script automates the complete evaluation process into 4 steps:
 
 1. **21-Channel Dataset Generation**: Runs `data/cache_window_unipolar_21.py` to extract features and cache the 21-channel binary classification evaluation set.
-2. **21-Channel Evaluation**: Runs `eval_single_model.py` using the cached data and `checkpoints/eegnet_10sec_full_next60.pt`.
+2. **21-Channel Evaluation**: Runs `eval.py` using the cached data and `checkpoints/eegnet_10sec_full_next60.pt`.
 3. **41-Channel Dataset Generation**: Runs `data/cache_window_unipolar_41.py` to cache the 41-channel 9-class multiclass evaluation set.
-4. **41-Channel Evaluation**: Runs `eval_single_model.py` using the 41-channel cached data and `checkpoints/best_model_checkpoint.pt`.
+4. **41-Channel Evaluation**: Runs `eval.py` using the 41-channel cached data and `checkpoints/best_model_checkpoint.pt`.
 
 ---
 
