@@ -11,14 +11,23 @@ All experimental, developmental, and unused code has been stripped away to provi
 ```
 Graduation-Project/
 ├── run_paper_evaluations.bat    # Main entry point to run all paper evaluations
-├── train.py                     # Unified training CLI
-├── eval.py                      # Unified evaluation CLI
-├── ensemble.py                  # Unified ensemble CLI
 ├── README.md
 │
-├── core/                        # Core model architectures and internal evaluation scripts
-│   ├── eval_single_model.py
-│   └── train_eegnet.py
+├── eegnet/                      # 1D Raw EEG Model (EEGNet)
+│   ├── train.py                 # Hardcoded training script for EEGNet
+│   └── eval.py                  # Hardcoded eval script for EEGNet
+│
+├── cnn_lstm/                    # 2D Spectrogram Model (CNN-LSTM)
+│   ├── train.py                 # Hardcoded training script for CNN-LSTM
+│   └── eval.py                  # Hardcoded eval script for CNN-LSTM
+│
+├── ensemble/                    # Cross-Architecture Ensemble
+│   └── eval.py                  # Hardcoded ensemble evaluation script
+│
+├── core/                        # Core model architectures and shared helpers
+│   ├── models.py                # Contains EEGNet and Spectrogram_CNN_LSTM architectures
+│   ├── train_helper.py          # Shared training loops
+│   └── T.py                     # EEG to Spectrogram transforms
 │
 ├── data/                        # Data processing and caching scripts
 │   ├── cache_window_unipolar_21.py # Caches 21-channel binary evaluation dataset
@@ -40,30 +49,27 @@ Graduation-Project/
 
 ---
 
-## Unified Command-Line Interface (CLI)
+## Manual Code Testing (Hardcoded Configs)
 
-The repository has been restructured into a unified CLI system. You no longer need to run specific script files directly. Instead, you have three powerful entry points:
+The repository has been restructured so you can easily run tests manually without dealing with complex command-line arguments. Every model has its own dedicated folder containing simple Python scripts. 
 
-### 1. Training
-Use `train.py` to train a model. You can specify which model architecture to train using the `--model` flag.
+At the top of each `train.py` and `eval.py` script, there is a **MANUAL CONFIGURATION** block. You can open the file in your editor, change variables like `CHECKPOINT_PATH`, `EPOCHS`, or `LR`, and run the script directly.
 
+### 1. EEGNet
 ```bash
-python train.py --model eegnet
+python eegnet/train.py
+python eegnet/eval.py
 ```
-*(As you add more models like `cnn_lstm` or `ml`, you can simply add them to the choices in `train.py`!)*
 
-### 2. Evaluation
-Use `eval.py` to evaluate any trained model checkpoint.
-
+### 2. CNN-LSTM
 ```bash
-python eval.py --model eegnet --ckpt checkpoints/best_model_checkpoint.pt --manifest assets/eeg_seizure_only_eval.json
+python cnn_lstm/train.py
+python cnn_lstm/eval.py
 ```
 
 ### 3. Ensemble
-Use `ensemble.py` to run an ensemble evaluation across multiple model checkpoints.
-
 ```bash
-python ensemble.py --models eegnet cnn_lstm --ckpts checkpoints/model1.pt checkpoints/model2.pt --manifest assets/eeg_seizure_only_eval.json
+python ensemble/eval.py
 ```
 
 ---
@@ -74,9 +80,9 @@ python ensemble.py --models eegnet cnn_lstm --ckpts checkpoints/model1.pt checkp
 The script automates the complete evaluation process into 4 steps:
 
 1. **21-Channel Dataset Generation**: Runs `data/cache_window_unipolar_21.py` to extract features and cache the 21-channel binary classification evaluation set.
-2. **21-Channel Evaluation**: Runs `eval.py` using the cached data and `checkpoints/eegnet_10sec_full_next60.pt`.
+2. **21-Channel Evaluation**: Runs `eegnet/eval.py` using the cached data.
 3. **41-Channel Dataset Generation**: Runs `data/cache_window_unipolar_41.py` to cache the 41-channel 9-class multiclass evaluation set.
-4. **41-Channel Evaluation**: Runs `eval.py` using the 41-channel cached data and `checkpoints/best_model_checkpoint.pt`.
+4. **41-Channel Evaluation**: Runs `cnn_lstm/eval.py` using the 41-channel cached data.
 
 ---
 

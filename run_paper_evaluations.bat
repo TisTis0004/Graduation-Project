@@ -13,7 +13,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [2] Evaluating 21-Channel Model (Binary)...
-python eval.py --model eegnet --ckpt "checkpoints/eegnet_10sec_full_next60.pt" --manifest "cache_windows_unipolar_21_eval/manifest.jsonl" --n_chans 21 --n_classes 2
+python eegnet/eval.py
 if %errorlevel% neq 0 (
     echo Error during 21-channel evaluation. Exiting.
     exit /b %errorlevel%
@@ -38,7 +38,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [4] Evaluating 41-Channel Model (9-Class Multiclass)...
-python eval.py --model eegnet --ckpt "checkpoints/best_model_checkpoint.pt" --manifest "cache_windows_unipolar_41_multiclass_eval/manifest.jsonl" --n_chans 41 --n_classes 9
+python cnn_lstm/eval.py
 if %errorlevel% neq 0 (
     echo Error during 41-channel evaluation. Exiting.
     exit /b %errorlevel%

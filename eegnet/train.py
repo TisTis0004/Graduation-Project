@@ -26,7 +26,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from braindecode.util import set_random_seeds
-from braindecode.models import EEGNet
+
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
@@ -37,10 +37,12 @@ from sklearn.metrics import (
 from tqdm import tqdm
 
 import sys
+import os
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parents[0]))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataloaderV2 import Loader
 from data.dataloader import Loader as OriginalLoader
+from core.models import EEGNet
 
 
 # =========================================================
@@ -178,26 +180,11 @@ def mixup_data(x, y, alpha=0.05):
 # =========================================================
 def build_eegnet(device):
     """
-    Build EEGNet optimized for 10-second EEG windows at 256Hz.
-    
-    Architecture rationale:
-    - F1=16: 16 temporal filters — captures diverse frequency patterns
-    - D=2: depth multiplier 2 — learns 32 spatial filters (2 per temporal filter)
-    - F2=32: 32 pointwise filters = F1 * D — separable combination
-    - kernel_length=128: 0.5s at 256Hz — captures full alpha/theta cycles
-    - drop_prob=0.5: aggressive dropout — EEGNet is small, needs strong regularization
+    Build custom EEGNet.
     """
     model = EEGNet(
         n_chans=N_CHANS,
-        n_outputs=NUM_CLASSES,
-        n_times=N_TIMES,
-        final_conv_length="auto",
-        pool_mode="mean",
-        F1=16,
-        D=2,
-        F2=32,
-        kernel_length=128,
-        drop_prob=0.5,
+        n_classes=NUM_CLASSES
     )
     return model.to(device)
 
