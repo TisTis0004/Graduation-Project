@@ -40,7 +40,8 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from core.T import EEGToSpectrogram
-from core.models import Spectrogram_CNN_LSTM, EEGNet
+from core.models import Spectrogram_CNN_LSTM
+from braindecode.models import EEGNet
 
 
 # =========================================================
@@ -50,8 +51,8 @@ from core.models import Spectrogram_CNN_LSTM, EEGNet
 # --- 2D Spectrogram Models (CNN-LSTM variants) ---
 SPECTROGRAM_MODELS = [
     {
-        "name": "CNN-LSTM-Large v3",
-        "checkpoint": "checkpoints/best_cnn_lstm.pt",
+        "name": "CNN-LSTM",
+        "checkpoint": "checkpoints/cnn_lstm.pt",
         "model_class": Spectrogram_CNN_LSTM,
     },
     # Uncomment to add more 2D models:
@@ -70,14 +71,10 @@ SPECTROGRAM_MODELS = [
 # --- 1D Raw EEG Models (EEGNet) ---
 EEGNET_MODELS = [
     {
-        "name": "EEGNet-1D Best",
-        "checkpoint": "checkpoints/eegnet_1d_best.pt",
+        "name": "EEGNet-1D",
+        "checkpoint": "checkpoints/eegnet.pt",
         "n_chans": 18,
-        "n_times": 2560,
         "n_outputs": 2,
-        "F1": 16, "D": 2, "F2": 32,
-        "kernel_length": 128,
-        "drop_prob": 0.5,
     },
     # Uncomment the SWA variant if available: if u wnat u can do that also it another idea
     # {
@@ -109,7 +106,7 @@ class PerChannelNorm(nn.Module):
 # =========================================================
 def load_spectrogram_model(config, device):
     """Load a 2D spectrogram-based model."""
-    model = config["model_class"]()
+    model = config["model_class"](num_channels=18, num_classes=2)
     checkpoint = torch.load(config["checkpoint"], map_location=device, weights_only=False)
     if "model_state_dict" in checkpoint:
         model.load_state_dict(checkpoint["model_state_dict"])
@@ -124,7 +121,15 @@ def load_eegnet_model(config, device):
     """Load a 1D EEGNet model."""
     model = EEGNet(
         n_chans=config["n_chans"],
-        n_classes=config["n_outputs"],
+        n_outputs=config["n_outputs"],
+        n_times=2560,
+        final_conv_length="auto",
+        pool_mode="mean",
+        F1=16,
+        D=2,
+        F2=32,
+        kernel_length=128,
+        drop_prob=0.5,
     )
     checkpoint = torch.load(config["checkpoint"], map_location=device, weights_only=False)
     state_dict = checkpoint.get("model_state_dict", checkpoint)

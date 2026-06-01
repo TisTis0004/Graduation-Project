@@ -1,106 +1,85 @@
-# EEG Seizure Detection — Paper Evaluation Branch
+# MindScope: Robust Seizure Detection
 
-This branch contains the streamlined, clean codebase specifically tailored for reproducing the core results of our paper on EEG Seizure Detection. It includes the final model architecture (EEGNet) and the exact evaluation pipeline used to generate the paper's metrics and plots.
+MindScope is a highly robust EEG binary seizure classification framework evaluated under strict clinical realism using the TUSZ v2.0.3 canonical, patient-disjoint splits. It utilizes an 18-channel bipolar longitudinal montage ("double banana" montage) at a standardized 256 Hz sampling rate to ensure maximum clinical relevance and resilience to artifacts.
 
-All experimental, developmental, and unused code has been stripped away to provide a clear and easy-to-use repository for researchers and reviewers.
+## Overview
 
----
+The framework relies on a heterogeneous ensemble combining:
+1. **1D Temporal Waveform Branch (EEGNet)**: Excels at isolating sharp, localized transient features such as spike-and-wave discharges directly from raw waveforms.
+2. **2D Spectral Dynamics Branch (CNN-LSTM)**: Ingests 40-bin Mel-spectrograms to track longer-term frequency trajectories and rhythmic evolution.
 
-## Project Structure
+Because these architectures extract orthogonal feature representations, their fusion yields a substantial performance leap when processing realistic, noisy, hospital EEG.
+
+## Features
+
+- **18-Channel Bipolar Montage**: Focuses on localized spatial field variations to suppress common-mode artifacts.
+- **Robust Normalization**: Subject-Level Robust Median and Interquartile Range (IQR) normalization preserves the high-amplitude voltage characteristics unique to electrographic seizures.
+- **Heterogeneous Ensemble**: Fuses 1D temporal and 2D spectral representations.
+- **Temporal Post-Processing**: Sliding majority voting window and minimum duration constraints eliminate transient artifact spikes.
+
+## Pipeline Performance
+
+Evaluated strictly on the canonical patient-disjoint test split of the Temple University Hospital Seizure Corpus (TUSZ):
+
+| Architecture | F1-score | AUC-ROC |
+|--------------|----------|---------|
+| CNN-LSTM (Best 2D) | 0.7543 | 0.8507 |
+| EEGNet-1D (Best 1D) | 0.7855 | 0.8796 |
+| Weighted Ensemble | 0.8029 | 0.8985 |
+| **Final Complete Pipeline** | **0.8108** | **0.9035** |
+
+*(Final Complete Pipeline includes Temporal Voting (w = 5) and Minimum Duration (min_dur = 3))*
+
+## Repository Structure
 
 ```
-Graduation-Project/
-├── run_paper_evaluations.bat    # Main entry point to run all paper evaluations
-├── README.md
-│
-├── eegnet/                      # 1D Raw EEG Model (EEGNet)
-│   ├── train.py                 # Hardcoded training script for EEGNet
-│   └── eval.py                  # Hardcoded eval script for EEGNet
-│
-├── cnn_lstm/                    # 2D Spectrogram Model (CNN-LSTM)
-│   ├── train.py                 # Hardcoded training script for CNN-LSTM
-│   └── eval.py                  # Hardcoded eval script for CNN-LSTM
-│
-├── ensemble/                    # Cross-Architecture Ensemble
-│   └── eval.py                  # Hardcoded ensemble evaluation script
-│
-├── core/                        # Core model architectures and shared helpers
-│   ├── models.py                # Contains EEGNet and Spectrogram_CNN_LSTM architectures
-│   ├── train_helper.py          # Shared training loops
-│   └── T.py                     # EEG to Spectrogram transforms
-│
-├── data/                        # Data processing and caching scripts
-│   ├── cache_window_unipolar_21.py # Caches 21-channel binary evaluation dataset
-│   ├── cache_window_unipolar_41.py # Caches 41-channel multiclass evaluation dataset
-│   ├── dataloader.py            # Custom DataLoader logic
-│   ├── dataloaderV2.py          # V2 DataLoader logic
-│   └── dataset.py               # Metadata parsing logic
-│
-├── checkpoints/                 # Final trained model weights used in the paper
-│   ├── best_model_checkpoint.pt
-│   └── eegnet_10sec_full_next60.pt
-│
-└── assets/                      # Metadata indices required for dataset loading
-    ├── eeg_seizure_only_eval.json
-    ├── tuh_train_index_eval.json
-    ├── eeg_seizure_only.json
-    └── tuh_train_index.json
+├── core/
+│   ├── models.py         # Defines Spectrogram_CNN_LSTM model
+│   ├── T.py              # EEGToSpectrogram transformation and augmentations
+│   └── train_helper.py   # Training loops, loss functions, and dataset loading
+├── data/
+│   ├── cache_window_banana.py # Data indexing and cache generation (run this first)
+│   ├── dataloaderV2.py   # Balanced buffering dataloaders
+│   └── dataset.py        # TUSZ metadata parsing
+├── cnn_lstm/             # 2D Spectral Dynamics model
+│   ├── train.py          # Training script
+│   └── eval.py           # Evaluation script
+├── eegnet/               # 1D Temporal Waveform model
+│   ├── train.py          # Training script
+│   └── eval.py           # Evaluation script
+├── ensemble/             # Heterogeneous Ensemble
+│   └── eval.py           # Evaluation of the fused system
+└── checkpoints/          # Pre-trained model weights
 ```
 
----
+## Quick Start
 
-## Manual Code Testing (Hardcoded Configs)
-
-The repository has been restructured so you can easily run tests manually without dealing with complex command-line arguments. Every model has its own dedicated folder containing simple Python scripts. 
-
-At the top of each `train.py` and `eval.py` script, there is a **MANUAL CONFIGURATION** block. You can open the file in your editor, change variables like `CHECKPOINT_PATH`, `EPOCHS`, or `LR`, and run the script directly.
-
-### 1. EEGNet
+### 1. Data Preparation
+Before training or evaluating, you must generate the cache files. Configure the dataset paths and run:
 ```bash
-python eegnet/train.py
-python eegnet/eval.py
+python data/cache_window_banana.py
 ```
+This will extract 10-second windows (with 50% overlap for evaluation) from the TUSZ `.edf` recordings and save them as PyTorch tensors.
 
-### 2. CNN-LSTM
-```bash
-python cnn_lstm/train.py
-python cnn_lstm/eval.py
-```
-
-### 3. Ensemble
+### 2. Evaluation
+To evaluate the pre-trained ensemble on the cached data:
 ```bash
 python ensemble/eval.py
 ```
+To evaluate individual models:
+```bash
+python eegnet/eval.py
+python cnn_lstm/eval.py
+```
 
----
+### 3. Training
+To train the models from scratch using the cached data:
+```bash
+python eegnet/train.py
+python cnn_lstm/train.py
+```
 
-## Paper Evaluation Automated Script
-
-### What the script does:
-The script automates the complete evaluation process into 4 steps:
-
-1. **21-Channel Dataset Generation**: Runs `data/cache_window_unipolar_21.py` to extract features and cache the 21-channel binary classification evaluation set.
-2. **21-Channel Evaluation**: Runs `eegnet/eval.py` using the cached data.
-3. **41-Channel Dataset Generation**: Runs `data/cache_window_unipolar_41.py` to cache the 41-channel 9-class multiclass evaluation set.
-4. **41-Channel Evaluation**: Runs `cnn_lstm/eval.py` using the 41-channel cached data.
-
----
-
-## Viewing the Results
-
-As the pipeline runs, it will output key metrics to the console, including:
-- **Macro F1-Score**
-- **Balanced Accuracy**
-- **ROC-AUC Score**
-
-Once the pipeline completes, it will automatically generate high-quality plots in the `assets/` directory (which will be created if it doesn't exist):
-- `assets/cm_*.png` (Confusion Matrices for both models)
-- `assets/auc_*.png` (AUC curve plots for binary classification)
-
----
-
-## Important Requirements
-
-- Ensure you have **Python 3.8+** installed along with standard data science packages (`torch`, `numpy`, `pandas`, `mne`, `scikit-learn`, `matplotlib`, `braindecode`).
-- Run the script strictly from the **project root directory** to ensure relative paths resolve correctly.
-- Ensure the EDF files correspond to the metadata paths present in the `assets/` JSON files, or adjust the paths in the data caching scripts if your local dataset directory differs.
+## Weights
+Pre-trained weights are provided in the `checkpoints/` directory:
+- `cnn_lstm.pt`
+- `eegnet.pt`

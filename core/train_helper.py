@@ -16,14 +16,9 @@ from sklearn.metrics import (
     top_k_accuracy_score,
 )
 from tqdm import tqdm
-import torchaudio.transforms as T
-
-from braindecode.models import EEGNet 
-from braindecode.models import EEGTCNet
-
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 from data.dataloaderV2 import Loader  # noqa: E402
-from data.dataloader import Loader  as orginal_loader
+from data.dataloader import Loader as original_loader
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=None, gamma=2.0, reduction="mean", label_smoothing=0.0):
@@ -59,12 +54,12 @@ EPOCHS = 30
 LR = 3e-4
 PATIENCE = 30
 MONITOR = "f1_macro"   # options: val_loss, accuracy, f1_macro, balanced_accuracy, auc
-CHECKPOINT_PATH = 'checkpoints/cnn_lstm_large_v3.pt'
-HISTORY_CSV_PATH = 'assets/cnn_lstm_large_v3.csv'
+CHECKPOINT_PATH = 'checkpoints/cnn_lstm.pt'
+HISTORY_CSV_PATH = 'assets/cnn_lstm.csv'
 SEED = 3025
 
-TRAIN_MANIFEST = 'cache_windows_downed2x_binary_10_sec\manifest.jsonl'
-VAL_MANIFEST = "cache_windows_binary_10_sec_eval\manifest.jsonl"
+TRAIN_MANIFEST = 'cache_windows_binary_10_sec/manifest.jsonl'
+VAL_MANIFEST = 'cache_windows_binary_10_sec_eval/manifest.jsonl'
 
 
 # =========================================================
@@ -165,7 +160,7 @@ def build_loaders(transform=None):
     train_loader_obj = Loader(transform=transform , ds = TRAIN_MANIFEST)
     train_loader = train_loader_obj.return_Loader()
 
-    val_loader_obj = orginal_loader(transform=transform, ds=VAL_MANIFEST)
+    val_loader_obj = original_loader(transform=transform, ds=VAL_MANIFEST)
     val_loader = val_loader_obj.return_Loader()
 
     return train_loader, val_loader

@@ -368,7 +368,7 @@ if __name__ == "__main__":
     cfg = CacheConfig(
         json_path=r"assets\eeg_seizure_only_eval.json",
         out_dir=r"cache_windows_unipolar_21_eval",
-        fs=250, # Must be 250Hz for the 2500 timepoint expectation of the model!
+        fs=256, 
         window_sec=10,
         stride_sec=5,
         l_freq=0.5,

@@ -1,86 +1,9 @@
-﻿import torch
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio.transforms as T
 
-class EEGToGeneralizedST(nn.Module):
-    """
-    FFT-Optimized Generalized S-Transform.
-    Bypasses PyTorch's memory-heavy F.conv1d by using Fast Fourier Transforms (The Convolution Theorem).
-    Uses almost zero VRAM and runs incredibly fast.
-    """
-    def __init__(self, fs=250, min_freq=1, max_freq=40, num_bins=40, time_pool_factor=16, p=1.0):
-        super().__init__()
-        self.fs = fs
-        self.num_bins = num_bins
-        self.time_pool_factor = time_pool_factor
-        
-        freqs = torch.linspace(min_freq, max_freq, num_bins)
-        T_window = fs * 10  # 2500 points
-        t = torch.arange(-T_window//2, T_window//2) / fs
-        
-        sigma = p / (2 * torch.pi * freqs)
-        
-        t_grid = t.unsqueeze(0).repeat(num_bins, 1)
-        sigma_grid = sigma.unsqueeze(1).repeat(1, T_window)
-        freqs_grid = freqs.unsqueeze(1).repeat(1, T_window)
-        
-        gaussian_window = torch.exp(- (t_grid ** 2) / (2 * sigma_grid ** 2))
-        
-        # S-Transform complex conjugate
-        complex_wave = torch.exp(-1j * 2 * torch.pi * freqs_grid * t_grid)
-        wavelets = gaussian_window * complex_wave
-        
-        wavelets = wavelets / torch.sum(gaussian_window, dim=1, keepdim=True)
-        
-        # FFT padding rule for linear convolution: L >= Signal_Length + Kernel_Length - 1
-        # 2500 + 2500 - 1 = 4999. We use 5000 for clean math.
-        self.n_fft = 5000
-        
-        # Pre-compute FFT of the wavelets and store on GPU
-        wavelets_padded = F.pad(wavelets, (0, self.n_fft - T_window))
-        wavelets_fft = torch.fft.fft(wavelets_padded, dim=1)
-        
-        # Shape: [1, 1, 40, 5000] -> Ready for broadcasting
-        self.register_buffer('wavelets_fft', wavelets_fft.view(1, 1, num_bins, self.n_fft))
 
-    def forward(self, x):
-        # x shape: [Batch, Channels, Time]
-        is_batched = x.dim() == 3
-        if not is_batched:
-            x = x.unsqueeze(0)
-            
-        B, C, T = x.shape
-        
-        # Pad the input signal with zeros to n_fft to avoid circular convolution artifacts
-        x_padded = F.pad(x, (0, self.n_fft - T))
-        
-        # 1. Take FFT of the input: [B, C, 5000] -> [B, C, 1, 5000]
-        x_fft = torch.fft.fft(x_padded, dim=-1).unsqueeze(2)
-        
-        # 2. Multiply in the frequency domain (The Convolution Theorem)
-        # x_fft: [B, C, 1, 5000] * wavelets_fft: [1, 1, 40, 5000] -> [B, C, 40, 5000]
-        out_fft = x_fft * self.wavelets_fft
-        
-        # 3. Inverse FFT to get back to time domain
-        out_complex = torch.fft.ifft(out_fft, dim=-1)
-        
-        # 4. Crop out the valid "same" convolution region
-        # Center crop to get exactly T=2500 points
-        start_idx = T // 2
-        end_idx = start_idx + T
-        out_cropped = out_complex[..., start_idx:end_idx]
-        
-        # 5. Get magnitude (Absolute value of complex number)
-        spectrogram = torch.abs(out_cropped)
-        
-        # 6. Pool to shrink time dimension for the LSTM
-        spectrogram = F.avg_pool2d(spectrogram, kernel_size=(1, self.time_pool_factor))
-
-        if not is_batched:
-            spectrogram = spectrogram.squeeze(0)
-
-        return spectrogram
 
 
 # =========================================================

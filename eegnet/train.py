@@ -8,10 +8,8 @@ Key optimizations over the baseline version:
 1. Per-channel z-score normalization (critical for raw EEG)
 2. FocalLoss with label smoothing (matches CNN-LSTM pipeline)
 3. OneCycleLR scheduler with warmup (faster, stabler convergence)
-4. SWA (Stochastic Weight Averaging) for final checkpoint
-5. Enhanced augmentations: per-channel jitter, signal reversal, bandstop
-6. Gradient accumulation for effective batch size 128
-7. Dual-model training: EEGNet + EEGTCNet for automatic internal ensemble
+4. Enhanced augmentations: per-channel jitter, signal reversal, bandstop
+5. Gradient accumulation for effective batch size 128
 """
 
 import os
@@ -42,7 +40,7 @@ from pathlib import Path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data.dataloaderV2 import Loader
 from data.dataloader import Loader as OriginalLoader
-from core.models import EEGNet
+from braindecode.models import EEGNet
 
 
 # =========================================================
@@ -51,13 +49,13 @@ from core.models import EEGNet
 NUM_CLASSES = 2
 EPOCHS = 50
 LR = 8e-4                # Slightly lower peak LR for OneCycleLR warmup
-PATIENCE = 50             # Large patience — let SWA do its work
+PATIENCE = 15             # Standard patience
 MONITOR = "f1_macro"
-CHECKPOINT_PATH = "weights/eegnet_1d_best.pt"
-HISTORY_CSV_PATH = "assets/eegnet_1d_best.csv"
+CHECKPOINT_PATH = "checkpoints/eegnet.pt"
+HISTORY_CSV_PATH = "assets/eegnet.csv"
 SEED = 42                 # Different seed from CNN-LSTM for diversity
 
-TRAIN_MANIFEST = "cache_windows_downed_binary_10_sec/manifest.jsonl"
+TRAIN_MANIFEST = "cache_windows_binary_10_sec/manifest.jsonl"
 VAL_MANIFEST = "cache_windows_binary_10_sec_eval/manifest.jsonl"
 
 N_CHANS = 18
@@ -117,20 +115,18 @@ class PerChannelNorm(nn.Module):
 # =========================================================
 class EEG1DAugmentation(nn.Module):
     """
-    Calibrated Light Augmentation.
-    Turns off at epoch 40 to let the model settle on clean data.
+    Targeted augmentations:
+    - Channel dropping
+    - Amplitude scaling
+    - Noise injection
+    - Rolling / time shifting
     """
     def __init__(self):
         super().__init__()
-        self.current_epoch = 0
-
-    def set_epoch(self, epoch):
-        self.current_epoch = epoch
 
     def forward(self, x):
         """x: [B, C, T]"""
-        # PHASE 3: No Augmentation (epochs 40-50)
-        if not self.training or self.current_epoch >= 40:
+        if not self.training:
             return x
 
         B, C, T = x.shape
@@ -184,7 +180,15 @@ def build_eegnet(device):
     """
     model = EEGNet(
         n_chans=N_CHANS,
-        n_classes=NUM_CLASSES
+        n_outputs=NUM_CLASSES,
+        n_times=N_TIMES,
+        final_conv_length="auto",
+        pool_mode="mean",
+        F1=16,
+        D=2,
+        F2=32,
+        kernel_length=128,
+        drop_prob=0.5,
     )
     return model.to(device)
 
@@ -263,8 +267,6 @@ def compute_metrics(y_true, y_pred, y_prob=None, num_classes=2):
 def train_one_epoch(epoch, model, loader, optimizer, criterion, scaler, augment, device, scheduler, use_amp=True):
     model.train()
     
-    # Update augmentation curriculum
-    augment.set_epoch(epoch)
     augment.train()
 
 

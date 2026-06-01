@@ -16,11 +16,11 @@ from core.models import Spectrogram_CNN_LSTM
 # MANUAL CONFIGURATION
 # Modify these variables to test manually!
 # =========================================================
-CHECKPOINT_PATH = "../checkpoints/best_model_checkpoint.pt"
-MANIFEST_PATH = "../cache_windows_unipolar_41_multiclass_eval/manifest.jsonl"
-N_CHANS = 41 # Make sure this matches your cached spectrogram dimension!
-N_CLASSES = 9
-LABELS = ["bckg", "fnsz", "gnsz", "spsz", "cpsz", "absz", "tnsz", "pnsz", "mysz"]
+CHECKPOINT_PATH = "checkpoints/cnn_lstm.pt"
+MANIFEST_PATH = "cache_windows_binary_10_sec_eval/manifest.jsonl"
+N_CHANS = 18 # Update this based on the weights!
+N_CLASSES = 2
+LABELS = ["Background", "Seizure"]
 # =========================================================
 
 import torch.nn.functional as F

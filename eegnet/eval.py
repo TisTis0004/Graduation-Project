@@ -10,15 +10,15 @@ from tqdm import tqdm
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from data.dataloader import Loader as OriginalLoader
-from core.models import EEGNet
+from braindecode.models import EEGNet
 
 # =========================================================
 # MANUAL CONFIGURATION
 # Modify these variables to test manually!
 # =========================================================
-CHECKPOINT_PATH = "../checkpoints/eegnet_10sec_full_next60.pt"
-MANIFEST_PATH = "../cache_windows_unipolar_21_eval/manifest.jsonl"
-N_CHANS = 21
+CHECKPOINT_PATH = "checkpoints/eegnet.pt"
+MANIFEST_PATH = "cache_windows_binary_10_sec_eval/manifest.jsonl"
+N_CHANS = 18
 N_CLASSES = 2
 LABELS = ["Background", "Seizure"] # Or use multiple classes if N_CLASSES > 2
 # =========================================================
@@ -115,7 +115,18 @@ def main():
         print(f"Error: Checkpoint not found at {CHECKPOINT_PATH}!")
         return
 
-    model = EEGNet(n_chans=N_CHANS, n_classes=N_CLASSES).to(device)
+    model = EEGNet(
+        n_chans=N_CHANS,
+        n_outputs=N_CLASSES,
+        n_times=2560,
+        final_conv_length="auto",
+        pool_mode="mean",
+        F1=16,
+        D=2,
+        F2=32,
+        kernel_length=128,
+        drop_prob=0.5,
+    ).to(device)
     checkpoint = torch.load(CHECKPOINT_PATH, map_location=device, weights_only=False)
     if "model_state_dict" in checkpoint:
         model.load_state_dict(checkpoint["model_state_dict"])

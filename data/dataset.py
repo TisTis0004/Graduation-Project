@@ -170,22 +170,22 @@ def csv_has_seizure(csv_path: str | Path) -> bool:
     return labels.str.contains("sz").any()
 
 
-dataset = TUHZDataset(
-    r"D:\EEG_DATA\tuh_eval", allowed_montages=None
-)  # We can use allowed montages only as follows if needed {"03_tcp_ar_a", "02_tcp_le"} ما بعرف اذا بتفيد بس عمومًا موجودة
-dataset.to_json("assets/tuh_train_index_eval.json")
-with open('assets/tuh_train_index_eval.json', 'r') as f:
-    data=json.load(f)
+if __name__ == "__main__":
+    dataset = TUHZDataset(
+        r"D:\EEG_DATA\tuh_eval", allowed_montages=None
+    )  # We can use allowed montages only as follows if needed {"03_tcp_ar_a", "02_tcp_le"} ما بعرف اذا بتفيد بس عمومًا موجودة
+    dataset.to_json("assets/tuh_train_index_eval.json")
+    with open('assets/tuh_train_index_eval.json', 'r') as f:
+        data=json.load(f)
 
-seizure_records = []
+    seizure_records = []
 
-for rec in data:
-    if csv_has_seizure(rec["csv_path"]):
-        seizure_records.append(rec)
+    for rec in data:
+        if csv_has_seizure(rec["csv_path"]):
+            seizure_records.append(rec)
 
 
-outpath=Path('assets/eeg_seizure_only_eval.json')
-with outpath.open('w' , encoding='utf-8') as f:
-    json.dump(seizure_records , f, indent=2)
-print(f"Seizure recordings: {len(seizure_records)} / {len(data)}")
-
+    outpath=Path('assets/eeg_seizure_only_eval.json')
+    with outpath.open('w' , encoding='utf-8') as f:
+        json.dump(seizure_records , f, indent=2)
+    print(f"Seizure recordings: {len(seizure_records)} / {len(data)}")

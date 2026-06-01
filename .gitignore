@@ -1,21 +1,26 @@
-visulization v1
-visulization resnet18
-runs
-cache_windows_eval
-cache_windows_eval_8_classes
-cache_windows
-assets
-__pycache__
+# Visualization directories
+visulization*
+
+# Output directories
+runs/
+assets/
+cache_windows*
+data_ML/
+
+# Python caching
+__pycache__/
+*.pyc
+
+# Model checkpoints and weights
 *.pt
 *.pth
-*.csv_bi
-*.png
-cache_windows_binary
+
+# Data files
 *.csv
-cache_windows_downed_binary
-cache_windows_binary_eval
-cache_windows_downed2x_binary_10_sec
-cache_windows_downed_binary_10_sec
-cache_windows_binary_10_sec_eval
-cache_windows_binary_10_sec
-data_ML
+*.csv_bi
+
+# Images
+*.png
+
+# Documents
+*.pdf
