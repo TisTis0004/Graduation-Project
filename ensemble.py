@@ -10,11 +10,11 @@ def main():
     args, unknown = parser.parse_known_args()
 
     if len(args.models) != len(args.ckpts):
-        print("❌ Error: The number of models must match the number of checkpoints provided.")
+        print("Error: The number of models must match the number of checkpoints provided.")
         sys.exit(1)
 
     print("=" * 60)
-    print(f"🤝 Starting ensemble evaluation")
+    print(f"Starting ensemble evaluation")
     print(f"Models: {', '.join(args.models).upper()}")
     print("=" * 60)
 

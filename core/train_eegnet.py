@@ -581,7 +581,7 @@ def main():
                 },
             }
             torch.save(checkpoint, CHECKPOINT_PATH)
-            print(f"✅ Saved best checkpoint at epoch {epoch+1} with F1={current_metric:.4f}")
+            print(f"[OK] Saved best checkpoint at epoch {epoch+1} with F1={current_metric:.4f}")
         else:
             patience_counter += 1
             print(f"No improvement. Patience {patience_counter}/{PATIENCE}")

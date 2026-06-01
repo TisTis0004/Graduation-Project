@@ -1,4 +1,4 @@
-# 🧠 EEG Seizure Detection — Paper Evaluation Branch
+# EEG Seizure Detection — Paper Evaluation Branch
 
 This branch contains the streamlined, clean codebase specifically tailored for reproducing the core results of our paper on EEG Seizure Detection. It includes the final model architecture (EEGNet) and the exact evaluation pipeline used to generate the paper's metrics and plots.
 
@@ -6,14 +6,19 @@ All experimental, developmental, and unused code has been stripped away to provi
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 Graduation-Project/
 ├── run_paper_evaluations.bat    # Main entry point to run all paper evaluations
-├── eval_single_model.py         # Evaluation script that calculates metrics and plots graphs
-├── train_eegnet.py              # Contains the EEGNet model definition and metrics
+├── train.py                     # Unified training CLI
+├── eval.py                      # Unified evaluation CLI
+├── ensemble.py                  # Unified ensemble CLI
 ├── README.md
+│
+├── core/                        # Core model architectures and internal evaluation scripts
+│   ├── eval_single_model.py
+│   └── train_eegnet.py
 │
 ├── data/                        # Data processing and caching scripts
 │   ├── cache_window_unipolar_21.py # Caches 21-channel binary evaluation dataset
@@ -35,7 +40,7 @@ Graduation-Project/
 
 ---
 
-## 🚀 Unified Command-Line Interface (CLI)
+## Unified Command-Line Interface (CLI)
 
 The repository has been restructured into a unified CLI system. You no longer need to run specific script files directly. Instead, you have three powerful entry points:
 
@@ -63,7 +68,7 @@ python ensemble.py --models eegnet cnn_lstm --ckpts checkpoints/model1.pt checkp
 
 ---
 
-## 🚀 Paper Evaluation Automated Script
+## Paper Evaluation Automated Script
 
 ### What the script does:
 The script automates the complete evaluation process into 4 steps:
@@ -75,7 +80,7 @@ The script automates the complete evaluation process into 4 steps:
 
 ---
 
-## 📊 Viewing the Results
+## Viewing the Results
 
 As the pipeline runs, it will output key metrics to the console, including:
 - **Macro F1-Score**
@@ -88,7 +93,7 @@ Once the pipeline completes, it will automatically generate high-quality plots i
 
 ---
 
-## ⚠️ Important Requirements
+## Important Requirements
 
 - Ensure you have **Python 3.8+** installed along with standard data science packages (`torch`, `numpy`, `pandas`, `mne`, `scikit-learn`, `matplotlib`, `braindecode`).
 - Run the script strictly from the **project root directory** to ensure relative paths resolve correctly.
