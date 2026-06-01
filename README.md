@@ -1,6 +1,8 @@
-# 🧠 EEG Seizure Detection — Binary Classification Pipeline
+# 🧠 EEG Seizure Detection — Paper Evaluation Branch
 
-A streamlined deep learning pipeline for detecting seizures in raw EEG recordings using the **TUH EEG Seizure Dataset (TUSZ)**. The system trains two complementary model architectures and combines them via an ensemble for maximum accuracy.
+This branch contains the streamlined, clean codebase specifically tailored for reproducing the core results of our paper on EEG Seizure Detection. It includes the final model architecture (EEGNet) and the exact evaluation pipeline used to generate the paper's metrics and plots.
+
+All experimental, developmental, and unused code has been stripped away to provide a clear and easy-to-use repository for researchers and reviewers.
 
 ---
 
@@ -8,177 +10,64 @@ A streamlined deep learning pipeline for detecting seizures in raw EEG recording
 
 ```
 Graduation-Project/
-├── train_eegnet.py              # Train 1D EEGNet on raw EEG waveforms
-├── train_spectrogram.py         # Train 2D CNN-LSTM on Mel spectrograms
+├── run_paper_evaluations.bat    # Main entry point to run all paper evaluations
+├── eval_single_model.py         # Evaluation script that calculates metrics and plots graphs
+├── train_eegnet.py              # Contains the EEGNet model definition and metrics
 ├── README.md
 │
-├── data/                        # Data pipeline
-│   ├── dataset.py               # Step 1: Scan TUH dataset → JSON metadata
-│   ├── cache_window_binary_banana.py  # Step 2: EDF → cached .pt windows + manifest
-│   ├── dataloader.py            # Sequential DataLoader (for eval)
-│   ├── dataloaderV2.py          # Balanced-sampling DataLoader (for training)
-│   └── minfest_effient.py       # Manifest builder utility
+├── data/                        # Data processing and caching scripts
+│   ├── cache_window_unipolar_21.py # Caches 21-channel binary evaluation dataset
+│   ├── cache_window_unipolar_41.py # Caches 41-channel multiclass evaluation dataset
+│   ├── dataloader.py            # Custom DataLoader logic
+│   ├── dataloaderV2.py          # V2 DataLoader logic
+│   └── dataset.py               # Metadata parsing logic
 │
-├── helper/                      # Shared logic (models, losses, transforms)
-│   ├── models.py                # All architectures (CNN-LSTM, ResNet18-LSTM, etc.)
-│   ├── train_helper.py          # Training loop utilities, metrics, configs
-│   ├── loss.py                  # FocalLoss, LDAMLoss
-│   └── T.py                    # EEGToSpectrogram (Mel spectrogram transform)
+├── checkpoints/                 # Final trained model weights used in the paper
+│   ├── best_model_checkpoint.pt
+│   └── eegnet_10sec_full_next60.pt
 │
-├── evaluation/                  # Evaluation scripts
-│   ├── eval.py                  # Single-model evaluation
-│   ├── evaluate_ensemble.py     # Ensemble evaluation (1D + 2D combined)
-│   └── evaluate_with_voting.py  # Temporal voting post-processing
-│
-├── assets/                      # Training history CSVs, metadata JSONs
-└── checkpoints/                 # Saved model weights (.pt)
+└── assets/                      # Metadata indices required for dataset loading
+    ├── eeg_seizure_only_eval.json
+    ├── tuh_train_index_eval.json
+    ├── eeg_seizure_only.json
+    └── tuh_train_index.json
 ```
 
 ---
 
-## ▶️ Full Pipeline (Step-by-Step)
+## 🚀 How to Run the Evaluations
 
-### Step 0 — Download the Dataset
-
-Download the **TUH EEG Seizure Dataset (TUSZ)** from:
-- https://isip.piconepress.com/projects/tuh_eeg/
-
-Extract it to a local directory.
-
----
-
-### Step 1 — Generate Dataset Metadata
+To reproduce the results reported in the paper, simply run the evaluation script:
 
 ```bash
-python data/dataset.py
+run_paper_evaluations.bat
 ```
 
-**What this does:**
-- Scans the TUH EEG directory structure.
-- Collects paths to `.edf` and `.csv` annotation files.
-- Outputs JSON metadata files into `assets/` (e.g., `eeg_seizure_only.json`).
-- Does **not** load any EEG data into memory — just lightweight path indexing.
+### What the script does:
+The script automates the complete evaluation process into 4 steps:
+
+1. **21-Channel Dataset Generation**: Runs `data/cache_window_unipolar_21.py` to extract features and cache the 21-channel binary classification evaluation set.
+2. **21-Channel Evaluation**: Runs `eval_single_model.py` using the cached data and `checkpoints/eegnet_10sec_full_next60.pt`.
+3. **41-Channel Dataset Generation**: Runs `data/cache_window_unipolar_41.py` to cache the 41-channel 9-class multiclass evaluation set.
+4. **41-Channel Evaluation**: Runs `eval_single_model.py` using the 41-channel cached data and `checkpoints/best_model_checkpoint.pt`.
 
 ---
 
-### Step 2 — Cache EEG Windows + Generate Manifest
+## 📊 Viewing the Results
 
-```bash
-python data/cache_window_binary_banana.py
-```
+As the pipeline runs, it will output key metrics to the console, including:
+- **Macro F1-Score**
+- **Balanced Accuracy**
+- **ROC-AUC Score**
 
-> **Run this TWICE** — once for train, once for eval.  
-> Uncomment the appropriate config block at the bottom of the file.
-
-**What this does:**
-1. Loads raw EDF recordings using MNE.
-2. Applies the **Double Banana Bipolar Montage** (18 channels) — subtracts adjacent electrodes for common-mode noise cancellation.
-3. Converts from Volts → Microvolts.
-4. Applies **Robust Normalization** (Median + IQR) — resistant to electrode pop artifacts.
-5. Extracts 10-second windows with 5-second stride.
-6. Labels each window as `seizure` or `non_seizure` (requires 40% seizure overlap to count).
-7. Saves `.pt` tensor files and auto-generates `manifest.jsonl`.
-
-> *If you get path errors, the manifest paths are relative to where you run the script. Run from the project root.*
+Once the pipeline completes, it will automatically generate high-quality plots in the `assets/` directory (which will be created if it doesn't exist):
+- `assets/cm_*.png` (Confusion Matrices for both models)
+- `assets/auc_*.png` (AUC curve plots for binary classification)
 
 ---
 
-### Step 3 — Downsample Background (Balance the Dataset)
+## ⚠️ Important Requirements
 
-```bash
-python data/downsample_background.py
-```
-
-**Why this is needed:**
-The TUH dataset is massively imbalanced — background windows outnumber seizure windows by 10–20x. Training on this raw ratio would cause the model to predict "background" for everything and still get 90% accuracy while missing every seizure.
-
-**What this does:**
-- Reads the cached `manifest.jsonl` from Step 2.
-- Counts seizure vs. background windows across all `.pt` files.
-- Randomly keeps only `bg_multiplier × seizure_count` background windows (default: 2x).
-- Saves the downsampled data to a **new folder** (does not overwrite the original cache).
-- Generates a new `manifest.jsonl` for the balanced dataset.
-
-> Edit the `bg_multiplier` in the `__main__` block to control the ratio (e.g., 2x, 3x, 5x).
-
----
-
-### Step 4 — Train
-
-You have **two independent training scripts** — each is self-contained with its own augmentation pipeline:
-
-#### Option A: Train 1D EEGNet (raw waveforms)
-```bash
-python train_eegnet.py
-```
-
-| Component | Details |
-|-----------|---------|
-| **Model** | braindecode EEGNet (F1=16, D=2, F2=32, kernel=128) |
-| **Input** | Raw 1D EEG `[B, 18, 2560]` |
-| **Augmentation** | Channel dropout, amplitude scaling, Gaussian noise, time shift (progressive curriculum) |
-| **MixUp** | α=0.05 (very light) |
-| **Loss** | FocalLoss with label smoothing (0.05) |
-| **Config** | Edit the `CONFIG` section at the top of the file |
-
-#### Option B: Train 2D CNN-LSTM (spectrograms)
-```bash
-python train_spectrogram.py
-```
-
-| Component | Details |
-|-----------|---------|
-| **Model** | CNN-LSTM with InstanceNorm + Temporal Attention Pooling |
-| **Input** | Mel spectrogram `[B, 18, F, T]` (via `EEGToSpectrogram`) |
-| **Augmentation** | SpecAugment (frequency masking, time masking, gain jitter) |
-| **MixUp** | α=0.1 (gentle blending) |
-| **Loss** | FocalLoss with label smoothing (0.05) |
-| **Config** | Edit `helper/train_helper.py` (CONFIG section + `build_model()`) |
-
-Both scripts save checkpoints to `checkpoints/` and training logs to `assets/`.
-
----
-
-### Step 5 — Evaluate
-
-```bash
-# Single model evaluation:
-python evaluation/eval.py
-
-# Ensemble (combines 1D EEGNet + 2D CNN-LSTM predictions):
-python evaluation/evaluate_ensemble.py
-
-# Temporal voting (smooths predictions across consecutive windows):
-python evaluation/evaluate_with_voting.py
-```
-
-**Why ensembling works:**
-- The 1D model captures **temporal waveform morphology** (sharp waves, spikes).
-- The 2D model captures **spectral patterns** (frequency × time).
-- Averaging their probabilities cancels out individual model noise.
-
----
-
-## ✅ Quick Start Summary
-
-```
-1. Download TUH EEG dataset
-2. python data/dataset.py
-3. python data/cache_window_binary_banana.py   (train set)
-4. python data/cache_window_binary_banana.py   (eval set — uncomment eval config)
-5. python data/downsample_background.py        (balance train set)
-6. python train_eegnet.py                      (1D model)
-7. python train_spectrogram.py                 (2D model)
-8. python evaluation/evaluate_ensemble.py      (ensemble eval)
-```
-
----
-
-## ⚠️ Important Notes
-
-- Always run commands from the **project root directory**.
-- EDF reading is CPU-based (expected behavior).
-- Training uses the **GPU automatically** if available (with AMP mixed precision).
-- Cached `.pt` files should be stored on an **SSD** for optimal training speed.
-- All model architectures live in `helper/models.py`.
-- All shared training logic (metrics, loaders, loss) lives in `helper/train_helper.py`.
+- Ensure you have **Python 3.8+** installed along with standard data science packages (`torch`, `numpy`, `pandas`, `mne`, `scikit-learn`, `matplotlib`, `braindecode`).
+- Run the script strictly from the **project root directory** to ensure relative paths resolve correctly.
+- Ensure the EDF files correspond to the metadata paths present in the `assets/` JSON files, or adjust the paths in the data caching scripts if your local dataset directory differs.

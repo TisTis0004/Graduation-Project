@@ -51,7 +51,7 @@ EPOCHS = 50
 LR = 8e-4                # Slightly lower peak LR for OneCycleLR warmup
 PATIENCE = 50             # Large patience — let SWA do its work
 MONITOR = "f1_macro"
-CHECKPOINT_PATH = "checkpoints/eegnet_1d_best.pt"
+CHECKPOINT_PATH = "weights/eegnet_1d_best.pt"
 HISTORY_CSV_PATH = "assets/eegnet_1d_best.csv"
 SEED = 42                 # Different seed from CNN-LSTM for diversity
 
@@ -62,7 +62,6 @@ N_CHANS = 18
 N_TIMES = 2560            # 10 seconds × 256 Hz
 BATCH_SIZE = 64
 GRAD_ACCUM_STEPS = 2      # Effective batch size = 64 * 2 = 128
-SWA_START_EPOCH = 35      # Start SWA averaging in the last 15 epochs
 
 
 # =========================================================
@@ -116,8 +115,8 @@ class PerChannelNorm(nn.Module):
 # =========================================================
 class EEG1DAugmentation(nn.Module):
     """
-    Progressive Curriculum Augmentation
-    Starts Heavy -> Light -> None (to let SWA settle on clean data).
+    Calibrated Light Augmentation.
+    Turns off at epoch 40 to let the model settle on clean data.
     """
     def __init__(self):
         super().__init__()
@@ -135,35 +134,24 @@ class EEG1DAugmentation(nn.Module):
         B, C, T = x.shape
         device = x.device
 
-        # Determine phase multipliers
-        if self.current_epoch < 20:
-            # PHASE 1: Heavy Augmentation (epochs 0-20)
-            p_mult = 2.0       # double probability
-            noise_g = 0.04     # more noise
-        else:
-            # PHASE 2: Light Augmentation (epochs 20-40)
-            p_mult = 1.0       # base probability
-            noise_g = 0.02     # light noise
-
-        # 1. Channel dropout
-        ch_p = 0.02 * p_mult
-        ch_mask = (torch.rand(B, C, 1, device=device) > ch_p).float()
+        # 1. Channel dropout (2%)
+        ch_mask = (torch.rand(B, C, 1, device=device) > 0.02).float()
         x = x * ch_mask
 
-        # 2. Global amplitude scaling
-        if random.random() < (0.25 * p_mult):
-            scale = torch.empty(B, 1, 1, device=device).uniform_(0.85 if p_mult > 1 else 0.9, 1.15 if p_mult > 1 else 1.1)
+        # 2. Global amplitude scaling (0.9-1.1, 25% prob)
+        if random.random() < 0.25:
+            scale = torch.empty(B, 1, 1, device=device).uniform_(0.9, 1.1)
             x = x * scale
 
-        # 3. Additive Gaussian noise
-        if random.random() < (0.2 * p_mult):
-            noise_std = x.std(dim=-1, keepdim=True).clamp(min=1e-8) * noise_g
+        # 3. Additive Gaussian noise (2% std, 20% prob)
+        if random.random() < 0.20:
+            noise_std = x.std(dim=-1, keepdim=True).clamp(min=1e-8) * 0.02
             noise = torch.randn_like(x) * noise_std
             x = x + noise
 
-        # 4. Random time shift
-        if random.random() < (0.2 * p_mult):
-            shift = random.randint(int(-32 * p_mult), int(32 * p_mult))
+        # 4. Random time shift (±32 samples, 20% prob)
+        if random.random() < 0.20:
+            shift = random.randint(-32, 32)
             x = torch.roll(x, shifts=shift, dims=-1)
 
         return x
@@ -315,10 +303,8 @@ def train_one_epoch(epoch, model, loader, optimizer, criterion, scaler, augment,
             x = augment(x)
 
         # MixUp on raw waveforms
-        # Progressive MixUp: Heavy (0.15) -> Light (0.05) -> None (0.00)
-        if epoch < 20: 
-            mix_alpha = 0.15
-        elif epoch < 40: 
+        # Calibrated MixUp: Light (0.05) -> None (0.00) at epoch 40
+        if epoch < 40: 
             mix_alpha = 0.05
         else: 
             mix_alpha = 0.0
@@ -479,7 +465,6 @@ def main():
     print(f"  Batch size:       {BATCH_SIZE} (effective: {BATCH_SIZE * GRAD_ACCUM_STEPS})")
     print(f"  Epochs:           {EPOCHS}")
     print(f"  LR:               {LR}")
-    print(f"  SWA starts:       epoch {SWA_START_EPOCH}")
     print(f"  Seed:             {SEED}")
     print(f"{'='*60}")
 
@@ -509,16 +494,6 @@ def main():
     # NOTE: No PerChannelNorm needed — cached data already has Median+IQR normalization
     # from cache_window_binary_banana.py (line 310-311). Double-normalizing would be harmful.
 
-    # =================================================
-    # SWA (Stochastic Weight Averaging)
-    # Averages model weights over the last N epochs.
-    # This "explores" a wider basin in loss landscape,
-    # producing a model that generalizes better.
-    # Standard technique from: Izmailov et al. 2018
-    # =================================================
-    swa_model = torch.optim.swa_utils.AveragedModel(model)
-    swa_active = False
-
     best_metric = None
     best_epoch = -1
     patience_counter = 0
@@ -529,25 +504,12 @@ def main():
     for epoch in range(EPOCHS):
         epoch_start = time.time()
 
-        # Activate SWA in the final phase
-        if epoch >= SWA_START_EPOCH and not swa_active:
-            swa_active = True
-            print(f"\n{'='*40}")
-            print(f"  SWA ACTIVATED at epoch {epoch+1}")
-            print(f"{'='*40}\n")
-
         train_metrics = train_one_epoch(
             epoch, model, train_loader, optimizer, criterion, scaler,
             augment, device, scheduler, use_amp
         )
 
-        # Update SWA model
-        if swa_active:
-            swa_model.update_parameters(model)
-
-        # Evaluate: use SWA model if active, otherwise base model
-        eval_model = swa_model if swa_active else model
-        val_metrics = evaluate(eval_model, val_loader, criterion, device, use_amp)
+        val_metrics = evaluate(model, val_loader, criterion, device, use_amp)
 
         epoch_time = time.time() - epoch_start
         current_metric = val_metrics["f1_macro"]
@@ -569,7 +531,6 @@ def main():
             "val_recall": val_metrics["recall_macro"],
             "val_auc": val_metrics.get("auc", np.nan),
             "val_threshold": val_metrics.get("best_threshold", 0.5),
-            "swa_active": swa_active,
             "epoch_time_sec": epoch_time,
         }
         history.append(log_row)
@@ -582,9 +543,8 @@ def main():
 
         # Print
         thresh_str = f" | Thresh {val_metrics.get('best_threshold', 0.5):.2f}" if "best_threshold" in val_metrics else ""
-        swa_str = " [SWA]" if swa_active else ""
         print(
-            f"Epoch {epoch+1}/{EPOCHS}{swa_str} | "
+            f"Epoch {epoch+1}/{EPOCHS} | "
             f"LR {log_row['lr']:.2e} | "
             f"Train Loss {train_metrics['loss']:.4f} | "
             f"Train F1 {train_metrics['f1_macro']:.4f} | "
@@ -603,17 +563,13 @@ def main():
             best_epoch = epoch + 1
             patience_counter = 0
 
-            # Save the appropriate model (SWA or base)
-            save_state = copy.deepcopy(eval_model.state_dict()) if swa_active else copy.deepcopy(model.state_dict())
-
             checkpoint = {
                 "epoch": epoch + 1,
-                "model_state_dict": save_state,
+                "model_state_dict": copy.deepcopy(model.state_dict()),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "best_metric": best_metric,
                 "monitor": MONITOR,
                 "val_metrics": val_metrics,
-                "swa": swa_active,
                 "config": {
                     "N_CHANS": N_CHANS,
                     "N_TIMES": N_TIMES,
@@ -633,42 +589,6 @@ def main():
         if patience_counter >= PATIENCE:
             print("Early stopping triggered.")
             break
-
-    # Final: update SWA batch normalization statistics
-    if swa_active:
-        print("\nUpdating SWA batch normalization statistics...")
-        # Re-create train loader for BN update
-        bn_loader = Loader(ds=TRAIN_MANIFEST, transform=None, batch_size=BATCH_SIZE).return_Loader()
-
-        # Wrap the loader to yield raw tensors (data already normalized from cache)
-        class SimpleWrapper:
-            def __init__(self, loader, device):
-                self.loader = loader
-                self.device = device
-
-            def __iter__(self):
-                for batch in self.loader:
-                    x = batch["x"].to(self.device, non_blocking=True)
-                    yield x
-
-        wrapped_loader = SimpleWrapper(bn_loader, device)
-        torch.optim.swa_utils.update_bn(wrapped_loader, swa_model, device=device)
-
-        # Save final SWA model
-        final_checkpoint = {
-            "epoch": EPOCHS,
-            "model_state_dict": copy.deepcopy(swa_model.state_dict()),
-            "best_metric": best_metric,
-            "monitor": MONITOR,
-            "swa": True,
-            "config": {
-                "N_CHANS": N_CHANS, "N_TIMES": N_TIMES, "NUM_CLASSES": NUM_CLASSES,
-                "F1": 16, "D": 2, "F2": 32, "kernel_length": 128, "drop_prob": 0.5,
-            },
-        }
-        swa_path = CHECKPOINT_PATH.replace(".pt", "_swa_final.pt")
-        torch.save(final_checkpoint, swa_path)
-        print(f"✅ Saved SWA final model to {swa_path}")
 
     total_time = time.time() - start_time
     print(f"\nBest epoch: {best_epoch} with F1={best_metric:.4f}")

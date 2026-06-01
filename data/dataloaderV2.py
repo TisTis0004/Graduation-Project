@@ -63,7 +63,7 @@ class BalancedBufferEEGDataset(IterableDataset):
         for file_path in worker_files:
             try:
                 # mmap=True is CRITICAL here. It prevents massive RAM spikes and disk thrashing.
-                data = torch.load(file_path, map_location="cpu", mmap=True)
+                data = torch.load(file_path, map_location="cpu", mmap=True, weights_only=False)
                 
                 # We pull everything into RAM for this specific file
                 x_all = data["x"]
@@ -141,7 +141,7 @@ class Loader:
         ds="cache_windows/manifest.jsonl",
         transform=None,
         batch_size=64, # This will now contain roughly 32 BG and 32 SZ per batch
-        num_workers=4,    # 4 workers + persistent = fast & stable on Windows
+        num_workers=0,    # 4 workers + persistent = fast & stable on Windows
         pin_memory=True,  # Highly recommended for GPU training
     ):
         # We use our new BalancedBufferDataset

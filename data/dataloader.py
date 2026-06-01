@@ -42,7 +42,7 @@ class PTStreamWindowsDataset(Dataset):
         # Load labels once so sampler can use them
         self.labels = []
         for path, _ in self.items:
-            data = torch.load(path, map_location="cpu")
+            data = torch.load(path, map_location="cpu", weights_only=False)
             ys = data["y"].long()
             self.labels.extend(ys.tolist())
 
@@ -56,7 +56,7 @@ class PTStreamWindowsDataset(Dataset):
         fi, li = self.index[idx]
 
         if self._last_fi != fi:
-            self._last_data = torch.load(self.items[fi][0], map_location="cpu")
+            self._last_data = torch.load(self.items[fi][0], map_location="cpu", weights_only=False)
             self._last_fi = fi
 
         x = self._last_data["x"][li]         # [C, T]
@@ -81,8 +81,8 @@ class Loader:
         transform=None,
         batch_size=32,
         shuffle=False,
-        num_workers=2,    # 2 workers + persistent = fast & stable on Windows
-        pin_memory=False,
+        num_workers=0,    # 2 workers + persistent = fast & stable on Windows
+        pin_memory=True,  # Highly recommended for GPU training
         collate_fn=collate_xy,
         use_weighted_sampler=False,
     ):
