@@ -64,8 +64,6 @@ class SpectrogramAugmentation(nn.Module):
       3. Gain Jitter        ΓÇö per-channel amplitude scaling (simulates
                               electrode impedance variation across channels)
 
-    These are the standard augmentations from Google's SpecAugment paper
-    (Park et al., 2019), adapted for multi-channel EEG spectrograms.
     """
     def __init__(self, freq_mask_max=5, time_mask_max=8, gain_range=(0.85, 1.15)):
         super().__init__()
