@@ -35,13 +35,35 @@ Graduation-Project/
 
 ---
 
-## 🚀 How to Run the Evaluations
+## 🚀 Unified Command-Line Interface (CLI)
 
-To reproduce the results reported in the paper, simply run the evaluation script:
+The repository has been restructured into a unified CLI system. You no longer need to run specific script files directly. Instead, you have three powerful entry points:
+
+### 1. Training
+Use `train.py` to train a model. You can specify which model architecture to train using the `--model` flag.
 
 ```bash
-run_paper_evaluations.bat
+python train.py --model eegnet
 ```
+*(As you add more models like `cnn_lstm` or `ml`, you can simply add them to the choices in `train.py`!)*
+
+### 2. Evaluation
+Use `eval.py` to evaluate any trained model checkpoint.
+
+```bash
+python eval.py --model eegnet --ckpt checkpoints/best_model_checkpoint.pt --manifest assets/eeg_seizure_only_eval.json
+```
+
+### 3. Ensemble
+Use `ensemble.py` to run an ensemble evaluation across multiple model checkpoints.
+
+```bash
+python ensemble.py --models eegnet cnn_lstm --ckpts checkpoints/model1.pt checkpoints/model2.pt --manifest assets/eeg_seizure_only_eval.json
+```
+
+---
+
+## 🚀 Paper Evaluation Automated Script
 
 ### What the script does:
 The script automates the complete evaluation process into 4 steps:

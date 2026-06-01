@@ -1,7 +1,6 @@
 visulization v1
 visulization resnet18
 runs
-checkpoints
 cache_windows_eval
 cache_windows_eval_8_classes
 cache_windows
